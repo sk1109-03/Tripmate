@@ -23,7 +23,8 @@
     },
     "concert": {
       "entry_deadline": {"value": "18:40", "source": "D02", "kind": "fixed"},
-      "start": {"value": "19:00", "source": "D02", "kind": "fixed"}
+      "start": {"value": "19:00", "source": "D02", "kind": "fixed"},
+      "refundable": {"value": false, "source": "D02", "kind": "fixed"}
     }
   },
   "travel": {

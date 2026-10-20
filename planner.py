@@ -145,8 +145,13 @@ def evaluate(data, park, obs, mode):
         score += -W["deck_risk_penalty"] if windy else W["deck_bonus"]
     score -= W["cost_per_10k"] * cost / 10000 + W["taxi_penalty"] * taxi_uses
 
+    visits = ["museum", "restaurant", "park" if park != "indoor" else "cafe", "observatory_indoor"]
+    if obs == "deck":
+        visits.append("observatory_deck")
+    visits.append("concert")
+
     return {
-        "park": park, "obs": obs, "mode": mode, "steps": steps, "legs": legs,
+        "park": park, "obs": obs, "mode": mode, "steps": steps, "legs": legs, "visits": visits,
         "fails": fails, "feasible": not fails, "score": round(score, 1),
         "concert_arrive": t, "slack": slack, "buffer": buffer, "cost": cost,
         "taxi_uses": taxi_uses, "rain_out": rain_out, "cont_outdoor": cont,

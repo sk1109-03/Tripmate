@@ -11,7 +11,7 @@ import json
 import sys
 from pathlib import Path
 
-from planner import MODE_LABEL, fmt, hm, plan, tag, v
+from planner import MODE_LABEL, fmt, hm, overlap, plan, tag, v
 
 PARK_LABEL = {"keep": "한강공원 유지", "short": "한강공원 축소", "indoor": "한강공원→실내 카페 대체"}
 OBS_LABEL = {"deck": "전망대 실내층+야외 데크", "indoor": "전망대 실내층만"}
@@ -126,22 +126,38 @@ def build_report(data, result):
     lines.append("")
 
     lines.append("## 2. 현재 유지할 일정")
-    lines.append(f"- 공연장 C: 절대 조건. 입장 마감 {v(dl)}, 환불 불가 {tag(dl)}")
+    # 통과한 상위 후보들에 공통으로 들어간 일정만 '유지'로 출력한다. 통과 후보가 없으면 절대 조건인 공연만 남긴다.
+    common = set.intersection(*(set(c["visits"]) for c in ranked)) if ranked else {"concert"}
+    in_all = f" - 상위 {len(ranked)}개 안 모두에 포함됨" if ranked else ""
     m = R["museum"]
-    museum_note = (f"- 미술관 M: {v(m['entry_start'])}~{v(m['entry_end'])} 입장, 최대 {v(m['max_stay_min'])}분 "
-                   f"{tag(m['entry_start'])}. {v(m['wanted_by'])}명이 꼭 가고 싶어 함 {tag(m['wanted_by'])}")
-    if hm(v(now)) >= hm(v(m["refund_deadline"])):
-        museum_note += f". 환불 마감 {v(m['refund_deadline'])}이 지나 취소해도 환불 불가 {tag(m['refund_deadline'])}"
-    lines.append(museum_note)
-    r = R["restaurant"]
-    ra = ranked[0]["restaurant_arrive"] if ranked else None
-    lines.append(f"- 식당 R: {v(r['time'])} 예약, 지각 한도 {v(r['late_limit_min'])}분 {tag(r['late_limit_min'])}"
-                 + (f". 최악 추정 도착 {fmt(ra)}" if ra is not None else ""))
-    if ranked:
+    before_refund = hm(v(now)) < hm(v(m["refund_deadline"]))
+    wanted = v(m["wanted_by"])
+    if "concert" in common:
+        cc = R["concert"]
+        refund_txt = "" if "refundable" not in cc else (
+            f", 환불 {'가능' if v(cc['refundable']) else '불가'} {tag(cc['refundable'])}")
+        lines.append(f"- 공연장 C: 절대 조건. 입장 마감 {v(dl)} {tag(dl)}{refund_txt}")
+    if "museum" in common:
+        museum_note = (f"- 미술관 M: {v(m['entry_start'])}~{v(m['entry_end'])} 입장, 최대 {v(m['max_stay_min'])}분 "
+                       f"{tag(m['entry_start'])}. 꼭 가고 싶은 인원 {wanted}명 {tag(m['wanted_by'])}")
+        if not before_refund:
+            museum_note += f". 환불 마감 {v(m['refund_deadline'])}이 지나 취소해도 환불 불가 {tag(m['refund_deadline'])}"
+        elif wanted == 0:
+            museum_note += ". 희망 인원이 없어 취소 여부를 확인 항목으로 남김"
+        lines.append(museum_note + in_all)
+    if "restaurant" in common:
+        r = R["restaurant"]
+        lines.append(f"- 식당 R: {v(r['time'])} 예약, 지각 한도 {v(r['late_limit_min'])}분 {tag(r['late_limit_min'])}"
+                     f". 1순위 안 최악 추정 도착 {fmt(ranked[0]['restaurant_arrive'])}{in_all}")
+    if "observatory_indoor" in common:
         o = R["observatory"]
         lines.append(f"- 전망대 O 실내층: 입장 마감 {v(o['indoor_last_entry'])} {tag(o['indoor_last_entry'])}. "
-                     f"실내층은 {v(data['facilities']['observatory_indoor'])} {tag(data['facilities']['observatory_indoor'])}. "
-                     f"1~3순위 안 모두에 포함됨")
+                     f"실내층은 {v(data['facilities']['observatory_indoor'])} {tag(data['facilities']['observatory_indoor'])}"
+                     f"{in_all}")
+    for key, label in (("park", "한강공원 P 야외(유지 또는 축소)"), ("cafe", "한강공원 인근 실내 카페"),
+                       ("observatory_deck", "전망대 O 야외 데크")):
+        if key in common:
+            lines.append(f"- {label}{in_all}")
     lines.append("")
 
     lines.append("## 3. 변경 가능 일정 1~3순위 (한강공원·전망대 데크·이동수단)")
@@ -187,13 +203,23 @@ def build_report(data, result):
     lines.append("")
 
     lines.append("## 6. 사용자가 확인할 항목")
-    if hm(v(now)) < hm(v(m["refund_deadline"])):
+    if before_refund:
+        stance = (f"{wanted}명이 꼭 가고 싶어 해서 유지 쪽을 권장함" if wanted > 0
+                  else "꼭 가고 싶은 인원이 없어 취소도 검토할 수 있음")
         lines.append(f"- 미술관 취소 여부: 현재 {v(now)}, 환불 마감 {v(m['refund_deadline'])} 전이라 지금 취소하면 전액 환불 가능 "
-                     f"{tag(m['refund_deadline'])}. 다만 {v(m['wanted_by'])}명이 꼭 가고 싶어 해서 유지를 권장함 "
-                     f"{tag(m['wanted_by'])}")
-    if ranked and any(c["obs"] == "deck" for c in ranked) or windy:
-        lines.append("- 전망대 도착 전에 야외 데크 운영 여부를 현장 공지로 확인 [추정 D05]")
-    lines.append("- 한강공원 출발 전에 지하철 선로 점검 실시간 지연과 버스·택시 소요시간을 확인 [추정 D06]")
+                     f"{tag(m['refund_deadline'])}. {stance} {tag(m['wanted_by'])}")
+    deck = data["facilities"]["deck_status"]
+    if (ranked and any(c["obs"] == "deck" for c in ranked)) or windy:
+        lines.append(f"- 전망대 도착 전에 야외 데크 운영 여부를 현장 공지로 확인 {tag(deck)}")
+    # 지연 항목이 있고, 상위 안의 해당 구간 이동이 지연 시간대와 겹칠 때만 확인 항목을 낸다.
+    for d in data.get("delays", []):
+        ws, we = map(hm, v(d["window"]))
+        hit = any(overlap(l["depart"], l["depart"] + l["dur"], ws, we) > 0
+                  for c in ranked for l in c["legs"] if l["seg"] == d["segment"])
+        if hit:
+            lines.append(f"- {SEG_LABEL[d['segment']]} 출발 전에 {MODE_LABEL[d['mode']]} 실시간 지연"
+                         f"({'~'.join(v(d['window']))} 추가 {v(d['extra_min'])[0]}~{v(d['extra_min'])[1]}분 안내)과 "
+                         f"대체 수단 소요시간을 확인 {tag(d['extra_min'])}")
     if ranked and any(c["taxi_uses"] for c in ranked):
         lines.append(f"- 택시 요금 추정치 {v(A['taxi_fare_per_ride']):,}원은 가정값이므로 실제 요금과 예산 "
                      f"{v(P['budget_won']):,}원을 확인 {tag(A['taxi_fare_per_ride'])}")
