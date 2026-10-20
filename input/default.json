@@ -1,0 +1,94 @@
+{
+  "_comment": "각 값은 value/source/kind 형식. kind: fixed=확정, estimate=추정(예보·이동시간), preference=선호, assumption=자료에 없어 사용자가 정한 가정값, input=사용자 입력",
+  "now": {"value": "09:25", "source": "사용자 입력", "kind": "input"},
+  "trip": {
+    "people": {"value": 4, "source": "D01", "kind": "fixed"},
+    "arrive": {"value": "09:20", "source": "D01", "kind": "fixed"},
+    "depart": {"value": "21:30", "source": "D01", "kind": "fixed"}
+  },
+  "reservations": {
+    "museum": {
+      "entry_start": {"value": "10:30", "source": "D02", "kind": "fixed"},
+      "entry_end": {"value": "11:00", "source": "D02", "kind": "fixed"},
+      "max_stay_min": {"value": 120, "source": "D02", "kind": "fixed"},
+      "refund_deadline": {"value": "09:30", "source": "D02", "kind": "fixed"},
+      "wanted_by": {"value": 2, "source": "D01", "kind": "preference"}
+    },
+    "restaurant": {
+      "time": {"value": "13:00", "source": "D02", "kind": "fixed"},
+      "late_limit_min": {"value": 15, "source": "D02", "kind": "fixed"}
+    },
+    "observatory": {
+      "indoor_last_entry": {"value": "18:00", "source": "D02", "kind": "fixed"}
+    },
+    "concert": {
+      "entry_deadline": {"value": "18:40", "source": "D02", "kind": "fixed"},
+      "start": {"value": "19:00", "source": "D02", "kind": "fixed"}
+    }
+  },
+  "travel": {
+    "station_museum": {"subway": {"value": [25, 35], "source": "D03", "kind": "estimate"}},
+    "museum_restaurant": {"subway": {"value": [20, 25], "source": "D03", "kind": "estimate"}},
+    "restaurant_park": {"subway": {"value": [25, 35], "source": "D03", "kind": "estimate"}},
+    "park_observatory": {
+      "subway": {"value": [30, 45], "source": "D03", "kind": "estimate"},
+      "bus": {"value": [35, 50], "source": "D06", "kind": "estimate"},
+      "taxi": {"value": [20, 35], "source": "D06", "kind": "estimate"}
+    },
+    "observatory_concert": {"subway": {"value": [20, 30], "source": "D03", "kind": "estimate"}}
+  },
+  "delays": [
+    {
+      "segment": "park_observatory",
+      "mode": "subway",
+      "window": {"value": ["15:00", "17:00"], "source": "D06", "kind": "estimate"},
+      "extra_min": {"value": [20, 30], "source": "D06", "kind": "estimate"}
+    }
+  ],
+  "weather": {
+    "issued": {"value": "09:00", "source": "D04", "kind": "estimate"},
+    "rain_prob": {"value": 80, "source": "D04", "kind": "estimate"},
+    "rain_window": {"value": ["15:00", "18:00"], "source": "D04", "kind": "estimate"},
+    "wind_ms": {"value": 9, "source": "D04", "kind": "estimate"},
+    "previous": {"value": {"issued": "07:00", "rain_prob": 60, "wind_ms": 6}, "source": "D04", "kind": "estimate"}
+  },
+  "facilities": {
+    "deck_status": {"value": "폐쇄 가능(미확정)", "source": "D05", "kind": "estimate"},
+    "observatory_indoor": {"value": "정상 운영 예정", "source": "D05", "kind": "estimate"},
+    "park_programs": {"value": "우천 시 일부 현장 취소 가능", "source": "D05", "kind": "estimate"}
+  },
+  "preferences": {
+    "budget_won": {"value": 60000, "source": "D07", "kind": "preference"},
+    "taxi_max_uses": {"value": 1, "source": "D07", "kind": "preference"},
+    "max_outdoor_in_rain_min": {"value": 30, "source": "D04·D07", "kind": "preference"},
+    "park_wanted_by": {"value": 1, "source": "D07", "kind": "preference"}
+  },
+  "assumptions": {
+    "museum_stay_min": {"value": 90, "source": "사용자 입력", "kind": "assumption"},
+    "restaurant_stay_min": {"value": 60, "source": "사용자 입력", "kind": "assumption"},
+    "park_stay_min": {"value": 90, "source": "사용자 입력", "kind": "assumption"},
+    "indoor_cafe_stay_min": {"value": 60, "source": "사용자 입력", "kind": "assumption"},
+    "observatory_stay_min": {"value": 45, "source": "사용자 입력", "kind": "assumption"},
+    "deck_time_min": {"value": 15, "source": "사용자 입력", "kind": "assumption"},
+    "transit_fare_per_person": {"value": 1500, "source": "사용자 입력", "kind": "assumption"},
+    "taxi_fare_per_ride": {"value": 20000, "source": "사용자 입력", "kind": "assumption"},
+    "rain_threshold_pct": {"value": 60, "source": "사용자 입력", "kind": "assumption"},
+    "deck_wind_threshold_ms": {"value": 8, "source": "사용자 입력", "kind": "assumption"},
+    "concert_buffer_min": {"value": 15, "source": "사용자 입력", "kind": "assumption"}
+  },
+  "weights": {
+    "_comment": "순위 점수 가중치(사용자 가정값)",
+    "slack_per_min": 0.5,
+    "slack_cap_min": 30,
+    "rain_exposure_per_min": 0.5,
+    "long_outdoor_penalty": 30,
+    "park_per_min": 0.3,
+    "deck_bonus": 8,
+    "deck_risk_penalty": 5,
+    "cost_per_10k": 2,
+    "taxi_penalty": 5
+  },
+  "llm": {
+    "banned_phrases": {"value": ["반드시 비", "폐쇄됐다", "폐쇄되었다", "정확히"], "source": "D08", "kind": "fixed"}
+  }
+}
