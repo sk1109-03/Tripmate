@@ -1,4 +1,4 @@
-# tripmate
+# tripmate - 트립메이트 – 여행 일정 변경 대응 AI Assistant
 
 ## 문제 정의
 
